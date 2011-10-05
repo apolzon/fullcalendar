@@ -55,41 +55,53 @@ function EventManager(options, _sources) {
 	function isFetchNeeded(start, end) {
 		return !rangeStart || start < rangeStart || end > rangeEnd;
 	}
-	
-	
-	function fetchEvents(start, end) {
-		rangeStart = start;
-		rangeEnd = end;
-		cache = [];
-		var fetchID = ++currentFetchID;
-		var len = sources.length;
-		pendingSourceCnt = len;
-		for (var i=0; i<len; i++) {
-			fetchEventSource(sources[i], fetchID);
-		}
-	}
-	
-	
-	function fetchEventSource(source, fetchID) {
-		_fetchEventSource(source, function(events) {
-			if (fetchID == currentFetchID) {
-				if (events) {
-					for (var i=0; i<events.length; i++) {
-						events[i].source = source;
-						normalizeEvent(events[i]);
-					}
-					cache = cache.concat(events);
-				}
-				pendingSourceCnt--;
-				if (!pendingSourceCnt) {
-					reportEvents(cache);
-				}
-			}
-		});
-	}
-	
-	
-	function _fetchEventSource(source, callback) {
+
+  function fetchEvents(start, end) {
+    // TODO: Properly update rangeStart and rangeEnd and prevent unneeded fetchEventSource calls
+    rangeStart = start;
+    rangeEnd = end;
+//		cache = [];
+    var fetchID = ++currentFetchID;
+    var len = sources.length;
+    pendingSourceCnt = len;
+    reportEvents(cache); // BUTTER!
+    for (var i = 0; i < len; i++) {
+      fetchEventSource(sources[i], fetchID);
+    }
+  }
+
+
+  function fetchEventSource(source, fetchID) {
+    _fetchEventSource(source, function(events) {
+      if (fetchID == currentFetchID) {
+        if (events) {
+          for (var i = 0; i < events.length; i++) {
+            var current_ids = [];
+            $.each(cache, function(index, element) {
+              current_ids.push(element.reminder_id);
+            });
+            if (($.inArray(events[i].reminder_id, current_ids)) < 0) {
+              events[i].source = source;
+              normalizeEvent(events[i]);
+            } else {
+              events.splice(i, 1);
+            }
+          }
+//					cache = cache.concat(events);
+          $.each(events, function(index, event) {
+            cache.push(event);
+          });
+        }
+        pendingSourceCnt--;
+        if (!pendingSourceCnt) {
+          reportEvents(cache);
+        }
+      }
+    });
+  }
+
+
+  function _fetchEventSource(source, callback) {
 		var i;
 		var fetchers = fc.sourceFetchers;
 		var res;
